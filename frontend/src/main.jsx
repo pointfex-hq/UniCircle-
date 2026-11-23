@@ -1,37 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DEMO_USERS, filterListings, label } from './market.js';
-import { Account, Admin, ItemDetails, ListingForm, Activity } from './screens.jsx';
-import { demoStore } from './demo-store.js';
+import { api, conditions, money, query, types } from './api.js';
+import { Account } from './account-v3.jsx';
+import { ListingDetails, ListingEditor } from './listings-v3.jsx';
+import { Activity, Admin } from './activity-v3.jsx';
+import { State, useOperation, useResource } from './ui.jsx';
 import { Badge, ItemVisual } from './visuals.jsx';
 import { CategoryRail, Footer, HeroCollage } from './marketplace-ui.jsx';
 import './style.css';
 
 const listingTypes = [
-  { value: 'Sell', label: 'Buy', color: 'mint', icon: 'M5 9h14l1 12H4L5 9Zm4 0V6a3 3 0 0 1 6 0v3' },
-  { value: 'Rent', label: 'Rent', color: 'blue', icon: 'M20 7v5h-5M4 17v-5h5m10.3-2A7.5 7.5 0 0 0 6 6.5L4 9m16 6-2 2.5A7.5 7.5 0 0 1 4.7 14' },
-  { value: 'Exchange', label: 'Exchange', color: 'amber', icon: 'M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4' },
-  { value: 'Donate', label: 'Donate', color: 'plum', icon: 'M12 20 4.5 12.8A4.6 4.6 0 1 1 12 7.6a4.6 4.6 0 1 1 7.5 5.2L12 20Z' },
-  { value: 'Free Borrowing', label: 'Free Borrowing', color: 'teal', icon: 'M12 6c-2.5-2-6-2.5-10-1v13c4-1.5 7.5-1 10 1 2.5-2 6-2.5 10-1V5c-4-1.5-7.5-1-10 1Zm0 0v13' },
+  { value: 'sell', label: 'Buy', color: 'mint', icon: 'M5 9h14l1 12H4L5 9Zm4 0V6a3 3 0 0 1 6 0v3' },
+  { value: 'rent', label: 'Rent', color: 'blue', icon: 'M20 7v5h-5M4 17v-5h5m10.3-2A7.5 7.5 0 0 0 6 6.5L4 9m16 6-2 2.5A7.5 7.5 0 0 1 4.7 14' },
+  { value: 'exchange', label: 'Exchange', color: 'amber', icon: 'M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4' },
+  { value: 'donate', label: 'Donate', color: 'plum', icon: 'M12 20 4.5 12.8A4.6 4.6 0 1 1 12 7.6a4.6 4.6 0 1 1 7.5 5.2L12 20Z' },
+  { value: 'free_borrowing', label: 'Free Borrowing', color: 'teal', icon: 'M12 6c-2.5-2-6-2.5-10-1v13c4-1.5 7.5-1 10 1 2.5-2 6-2.5 10-1V5c-4-1.5-7.5-1-10 1Zm0 0v13' },
   { value: '', label: 'All listings', color: 'slate', icon: 'M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z' },
 ];
 
-const useHash = () => {
-  const [route, setRoute] = useState(() => location.hash.slice(1) || 'marketplace');
-  useEffect(() => {
-    const update = () => setRoute(location.hash.slice(1) || 'marketplace');
-    window.addEventListener('hashchange', update);
-    return () => window.removeEventListener('hashchange', update);
-  }, []);
-  return route;
-};
-
-function Marketplace({ listings, users }) {
+function Marketplace() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [type, setType] = useState('');
   const [free, setFree] = useState(false);
-  const items = filterListings(listings, search, category, type, free);
+  const endpoint = query('/listings', { q: search.trim(), category, type, free: free || undefined, limit: 20 });
+  const categories = useResource('/categories');
   const clear = () => { setSearch(''); setCategory(''); setType(''); setFree(false); };
   return <>
     <section className="hero editorial-hero">
@@ -57,12 +50,11 @@ function Marketplace({ listings, users }) {
       <div className="browse-heading">
         <h2 id="browse-title">{type ? listingTypes.find(option => option.value === type).label + ' listings' : 'Campus finds'}</h2>
         <label className="market-search"><span className="sr-only">Search listings</span>
-          <input id="listing-search" type="search" placeholder="Search books, calculators and more" value={search} onChange={e => setSearch(e.target.value)} />
+          <input id="listing-search" type="search" placeholder="Search books, calculators and more" maxLength={100} value={search} onChange={e => setSearch(e.target.value)} />
         </label>
       </div>
-      <CategoryRail category={category} onSelect={setCategory} />
+      <State resource={categories}>{({ items }) => <CategoryRail category={category} onSelect={setCategory} categories={items} />}</State>
       <div className="listing-status">
-        <p className="result-count" role="status">{items.length} {items.length === 1 ? 'listing' : 'listings'}</p>
         <div className="listing-filter-actions">
           <label className="check"><input type="checkbox" checked={free} onChange={event => {
             setFree(event.target.checked);
@@ -71,110 +63,157 @@ function Marketplace({ listings, users }) {
           {(search || category || type || free) && <button type="button" className="quiet reset-listings" onClick={clear}>Clear filters</button>}
         </div>
       </div>
-      {items.length ? <div className="grid">{items.map(item => <article key={item.id} className="card">
-        <a className="card-link" href={'#item/' + item.id}>
-          <div className="tile-media"><ItemVisual item={item} /><Badge>{item.type === 'Sell' ? 'Buy' : item.type}</Badge></div>
-          <div className="card-body"><h3>{item.title}</h3><strong className="price">{label(item)}</strong>
-            <p className="muted">{item.condition} · {users.find(user => user.id === item.ownerId)?.name ?? 'Campus member'}</p></div>
-        </a>
-      </article>)}</div> : <div className="panel">No matching items. Try another search or category.</div>}
+      <Feed key={endpoint} endpoint={endpoint} />
     </section>
   </>;
 }
 
+function Feed({ endpoint }) {
+  const resource = useResource(endpoint);
+  return <State resource={resource}>{data => <FeedPage initial={data} endpoint={endpoint} />}</State>;
+}
+
+function FeedPage({ initial, endpoint }) {
+  const [more, setMore] = useState(null);
+  const operation = useOperation();
+  const items = [...initial.items, ...(more?.items ?? [])];
+  const cursor = more ? more.nextCursor : initial.nextCursor;
+  return <>
+    <p className="result-count" role="status">{items.length} listings shown</p>
+    {items.length ? <div className="grid">{items.map(item => <article key={item.id} className="card">
+      <a className="card-link" href={'/listings/' + item.id}>
+        <div className="tile-media"><ItemVisual item={item} /><Badge>{item.listingType === 'sell' ? 'Buy' : types[item.listingType]}</Badge></div>
+        <div className="card-body"><h3>{item.title}</h3><strong className="price">{money(item)}</strong>
+          <p className="muted">{conditions[item.condition]} · {item.owner.displayName}</p></div>
+      </a>
+    </article>)}</div> : <p className="panel">No matching items. Try another search or category.</p>}
+    {operation.feedback}
+    {cursor && <button className="secondary load-more" disabled={operation.busy} onClick={() => operation.run(async () => {
+      const page = await api(endpoint + '&cursor=' + encodeURIComponent(cursor));
+      setMore(current => ({ items: [...(current?.items ?? []), ...page.items], nextCursor: page.nextCursor }));
+    })}>{operation.busy ? 'Loading…' : 'Load More'}</button>}
+  </>;
+}
+
+
+const publicPaths = new Set(['/signin', '/register', '/verify-email', '/forgot-password', '/reset-password']);
+const tokenPath = new Set(['/verify-email', '/reset-password']);
+
+function readLocation() {
+  const url = new URL(location.href);
+  const token = tokenPath.has(url.pathname) ? url.searchParams.get('token') : null;
+  if (url.searchParams.has('token') && tokenPath.has(url.pathname)) {
+    url.searchParams.delete('token');
+    history.replaceState(null, '', url.pathname + url.search);
+  }
+  return { path: url.pathname, tab: url.searchParams.get('tab'), token };
+}
+
+const initialRoute = readLocation();
+
 function App() {
-  const route = useHash();
-  const [screen, id] = route.split('/');
-  const authPage = screen === 'signin' || screen === 'register';
-  const [state, setState] = useState(demoStore.read);
-  const [session, setSession] = useState(demoStore.session);
-  const user = state.users.find(entry => entry.id === session);
-  const verified = user?.status === 'Verified';
-  const item = state.listings.find(entry => entry.id === id);
-  useEffect(() => { window.scrollTo(0, 0); }, [route]);
+  const [route, setRoute] = useState(initialRoute);
+  const [user, setUser] = useState(undefined);
+  const [sessionError, setSessionError] = useState(null);
+  const [notice, setNotice] = useState('');
+  const sessionLoad = useRef(0);
+  const { path } = route;
+  const verified = user?.verificationStatus === 'verified';
 
-  function openSession(account) {
-    const userId = account?.id ?? '';
-    demoStore.setSession(userId);
-    setSession(userId);
-    if (account?.status === "Verified" && ["item", "post"].includes(screen)) return;
-    location.hash = !account ? 'signin' : account.status === 'Verified' ? 'marketplace' : 'verify';
+  function navigate(href, message = '') {
+    history.pushState(null, '', href);
+    setNotice(message);
+    setRoute(readLocation());
+    window.scrollTo(0, 0);
   }
-
-  function act(action, values) {
-    setState(demoStore.action(user, action, values));
-  }
-
-  let page;
-  if (authPage && !user) {
-    page = <Account key={screen} register={screen === 'register'} onSession={openSession} onUpdate={setState} />;
-  } else if (!verified) {
-    page = <Account key={user?.id ?? 'guest'} user={user} onSession={openSession} onUpdate={setState} />;
-  } else {
-    switch (screen) {
-      case 'post':
-        page = <ListingForm onSave={values => { act('save', { listing: values }); location.hash = 'activity'; }} />;
-        break;
-      case 'edit':
-        page = item?.ownerId === user.id && item.status === 'Available' && !item.hidden
-          ? <ListingForm key={id} item={item} onSave={values => { act('save', { itemId: id, listing: values }); location.hash = 'activity'; }} />
-          : <p className="panel">This listing cannot be edited.</p>;
-        break;
-      case 'item':
-        page = item && !item.hidden && item.status === 'Available'
-          ? <ItemDetails key={id} item={item} user={user} owner={state.users.find(entry => entry.id === item.ownerId)} act={act} />
-          : <p className="panel">This item is unavailable. <a href="#marketplace">Back to marketplace</a></p>;
-        break;
-      case 'activity':
-        page = <Activity state={state} user={user} act={act} />;
-        break;
-      case 'admin':
-        page = user.role === 'admin' ? <Admin state={state} act={act} /> : <p className="panel">Administrator access is required.</p>;
-        break;
-      case 'account':
-      case 'verify':
-      case 'signin':
-      case 'register':
-        page = <Account key={user.id} user={user} onSession={openSession} onUpdate={setState} />;
-        break;
-      default:
-        page = <Marketplace listings={state.listings} users={state.users} />;
+  async function loadSession() {
+    const attempt = ++sessionLoad.current;
+    setSessionError(null);
+    try {
+      const result = await api('/auth/me');
+      if (attempt === sessionLoad.current) setUser(result.user);
+    }
+    catch (error) {
+      if (attempt !== sessionLoad.current) return;
+      if (error.status === 401) setUser(null);
+      else setSessionError(error);
     }
   }
+  function establishSession(account) {
+    ++sessionLoad.current;
+    setSessionError(null);
+    setUser(account);
+  }
 
-  return <>
-    <a className="skip-link" href="#main" onClick={event => {
+  useEffect(() => {
+    loadSession();
+    const onBack = () => { setNotice(''); setRoute(readLocation()); };
+    const onLink = event => {
+      const link = event.target.closest('a[href]');
+      if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey ||
+        event.altKey || link.target || link.hasAttribute('download') || !link.getAttribute('href').startsWith('/')) return;
       event.preventDefault();
-      document.getElementById('main').focus();
-    }}>Skip to content</a>
+      navigate(link.getAttribute('href'));
+    };
+    const expired = event => {
+      setUser(event.type === 'unicircle:unauthorized' ? null : previous => previous && { ...previous, verificationStatus: 'unverified' });
+    };
+    addEventListener('popstate', onBack);
+    addEventListener('unicircle:unauthorized', expired);
+    addEventListener('unicircle:not-verified', expired);
+    document.addEventListener('click', onLink);
+    return () => {
+      removeEventListener('popstate', onBack);
+      removeEventListener('unicircle:unauthorized', expired);
+      removeEventListener('unicircle:not-verified', expired);
+      document.removeEventListener('click', onLink);
+    };
+  }, []);
+
+  const home = user ? verified ? '/marketplace' : '/status' : '/signin';
+  const redirect = user === undefined ? null : path === '/' ? home
+    : !publicPaths.has(path) && !user ? '/signin'
+    : user && !verified && !publicPaths.has(path) && path !== '/status' ? '/status'
+    : verified && ['/signin', '/register', '/status'].includes(path) ? '/marketplace' : null;
+  useEffect(() => {
+    if (redirect && redirect !== path) {
+      history.replaceState(null, '', redirect);
+      setRoute(readLocation());
+    }
+  }, [redirect, path]);
+
+  const listing = /^\/listings\/([a-f0-9]{24})(\/edit)?$/.exec(path);
+  let page;
+  if (sessionError && !publicPaths.has(path)) page = <p className="panel" role="alert">{sessionError.message} <button onClick={loadSession}>Retry</button></p>;
+  else if ((user === undefined && !publicPaths.has(path)) || redirect) page = <p className="panel" role="status">Loading…</p>;
+  else if (publicPaths.has(path) || path === '/status' || path === '/account') {
+    page = <Account key={path} path={path} token={route.token} user={user} onSession={establishSession} navigate={navigate} />;
+  } else if (path === '/marketplace') page = <Marketplace />;
+  else if (path === '/post' || listing?.[2]) page = <ListingEditor key={path} id={listing?.[1]} user={user} navigate={navigate} />;
+  else if (listing) page = <ListingDetails key={listing[1]} id={listing[1]} user={user} />;
+  else if (path === '/activity') page = <Activity user={user} tab={route.tab} />;
+  else if (['/admin/domains', '/admin/listings'].includes(path)) page = user?.role === 'admin'
+    ? <Admin key={path} domains={path === '/admin/domains'} />
+    : <p className="panel" role="alert">Administrator access is required.</p>;
+  else page = <p className="panel">Page not found. <a href={home}>Go back</a></p>;
+
+  const links = [['/marketplace', 'Marketplace'], ['/post', 'Post Item'], ['/activity', 'My Activity']];
+  if (user?.role === 'admin') links.push(['/admin/domains', 'Admin']);
+  return <>
+    <a className="skip-link" href="#main" onClick={event => { event.preventDefault(); document.getElementById('main').focus(); }}>Skip to content</a>
     <header className="header"><div className="header-inner">
-      <a className="brand" href="#marketplace" aria-label="UniCircle home">
+      <a className="brand" href={home} aria-label="UniCircle home">
         <span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="9" cy="12" r="5" /><circle cx="15" cy="12" r="5" /></svg></span>
         <span className="brand-name">Uni<strong>Circle</strong></span>
       </a>
-      {verified && <nav aria-label="Main navigation">
-        {[['marketplace', 'Marketplace'], ['post', 'Post Item'], ['activity', 'My Activity'], ...(user.role === 'admin' ? [['admin', 'Admin']] : [])].map(([hash, title]) =>
-          <a key={hash} href={'#' + hash} aria-current={screen === hash ? 'page' : undefined}>{title}</a>)}
-      </nav>}
-      <div className="account-links" aria-label="Account">
-        {user ? (
-          <a className="account-link" href={verified ? '#account' : '#verify'}
-            aria-current={screen === (verified ? 'account' : 'verify') ? 'page' : undefined}>
-            {verified ? 'Profile' : 'Verification'}
-          </a>
-        ) : <>
-          <a className="account-link" href="#signin" aria-current={screen === 'signin' ? 'page' : undefined}>Sign in</a>
-          <a className="account-link" href="#register" aria-current={screen === 'register' ? 'page' : undefined}>Register</a>
-        </>}
+      {verified && <nav aria-label="Main navigation">{links.map(([href, title]) =>
+        <a href={href} key={href} aria-current={path === href ? 'page' : undefined}>{title}</a>)}</nav>}
+      <div className="account-links">
+        {user ? <a className="account-link" href={verified ? '/account' : '/status'}>{verified ? 'Profile' : 'Verification'}</a>
+          : <><a className="account-link" href="/signin">Sign in</a><a className="account-link" href="/register">Register</a></>}
       </div>
     </div></header>
-    <main id="main" className="shell" tabIndex={-1}>
-      {page}
-      <aside className="demo-bar" aria-label="Demo accounts"><span>Demo accounts</span>
-        {DEMO_USERS.map(account => <button type="button" key={account.id} className="quiet" aria-pressed={user?.id === account.id}
-          onClick={() => openSession(account)}>{account.name}</button>)}
-      </aside>
-    </main>
+    <main id="main" className="shell" tabIndex={-1}>{notice && <p className="success" role="status">{notice}</p>}{page}</main>
     <Footer />
   </>;
 }

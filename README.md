@@ -2,7 +2,7 @@
 
 UniCircle is Pointfex's campus marketplace for verified university members to buy, sell, rent, exchange, donate, and lend items.
 
-## Run the existing frontend baseline
+## Run the frontend
 
 Use Node.js 20.19+ or 22.12+.
 
@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite and choose **Try demo account**. This baseline is for comparing the UI during v3.0 integration.
+Open the local URL printed by Vite. To work without the API, follow the [development mock setup](frontend/README.md).
 
 ## v3.0 implementation
 

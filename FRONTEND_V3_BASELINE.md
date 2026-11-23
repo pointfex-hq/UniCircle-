@@ -29,7 +29,7 @@ Baseline commit `0ad4777` from the existing frontend PR. The handoff names a Rea
 
 ## Acceptance status
 
-Phase 0 leaves the baseline demo behavior in place. FE-01–21 are pending. Do not deploy this baseline as an API-backed frontend. Integration depends on the backend implementing the frozen API and provisioning its services. Keep product and wire-contract changes in a versioned review.
+Phase 0 left the baseline demo behavior in place. The v3 frontend implementation now replaces it with an HTTP client and opt-in development fixtures. The frontend README documents the current runtime and test setup. Live behavior still depends on the backend implementing the frozen API and provisioning its services. Keep product and wire-contract changes in a versioned review.
 
 OpenAPI inventory is 36 operations on 32 unique paths. CI validates the OpenAPI document and verifies that its method/path inventory matches the human-readable contract.
 

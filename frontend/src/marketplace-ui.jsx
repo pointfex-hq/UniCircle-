@@ -1,5 +1,4 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { CATEGORIES } from './market.js';
 import { ItemVisual } from './visuals.jsx';
 
 const heroItems = [
@@ -70,7 +69,7 @@ export function HeroCollage() {
   </>;
 }
 
-export function CategoryRail({ category, onSelect }) {
+export function CategoryRail({ category, onSelect, categories }) {
   const rail = useRef(null);
   const indicator = useRef(null);
   const drag = useRef(null);
@@ -183,8 +182,8 @@ export function CategoryRail({ category, onSelect }) {
         if (!event.currentTarget.hasPointerCapture(event.pointerId)) finishDrag(event);
       }}>
       <span className="category-indicator" aria-hidden="true" ref={indicator} />
-      {['', ...CATEGORIES].map(option => <button type="button" key={option} aria-pressed={category === option}
-        onClick={() => { setPaused(true); onSelect(option); }}>{option || 'All categories'}</button>)}
+      {[{ code: '', name: 'All categories' }, ...categories].map(({ code, name }) => <button type="button" key={code}
+        aria-pressed={category === code} onClick={() => { setPaused(true); onSelect(code); }}>{name}</button>)}
     </div>
     <button type="button" className="category-auto-toggle"
       aria-label={paused ? 'Play automatic category scroll' : 'Pause automatic category scroll'}
@@ -200,10 +199,6 @@ export function Footer() {
   const help = useRef(null);
   const about = useRef(null);
 
-  function scrollCurrentPage(event) {
-    if (location.hash === event.currentTarget.hash) window.scrollTo(0, 0);
-  }
-
   return <>
     <footer className="site-footer">
       <div className="footer-inner">
@@ -211,9 +206,9 @@ export function Footer() {
           by Pointfex <span aria-hidden="true">↗</span>
         </a></span>
         <nav className="footer-links" aria-label="Footer">
-          <a href="#marketplace" onClick={scrollCurrentPage}>Marketplace</a>
-          <a href="#post" onClick={scrollCurrentPage}>Post an item</a>
-          <a href="#activity" onClick={scrollCurrentPage}>My Activity</a>
+          <a href="/marketplace">Marketplace</a>
+          <a href="/post">Post an item</a>
+          <a href="/activity">My Activity</a>
           <button type="button" className="footer-link" onClick={() => help.current.showModal()}>Help</button>
           <button type="button" className="footer-link" onClick={() => about.current.showModal()}>About</button>
         </nav>
@@ -222,12 +217,12 @@ export function Footer() {
     <dialog className="footer-dialog" ref={help} aria-labelledby="footer-help-title">
       <h2 id="footer-help-title">How it works</h2>
       <p>Request an item and check pickup details in My Activity once the owner accepts.</p>
-      <a href="#marketplace" onClick={event => { help.current.close(); scrollCurrentPage(event); }}>Browse listings</a>
+      <a href="/marketplace" onClick={() => help.current.close()}>Browse listings</a>
       <form method="dialog"><button>Close</button></form>
     </dialog>
     <dialog className="footer-dialog" ref={about} aria-labelledby="footer-about-title">
       <h2 id="footer-about-title">About UniCircle</h2>
-      <p>A campus marketplace demo. Activity is saved in this browser.</p>
+      <p>A marketplace for verified university members.</p>
       <a href={pointfex} target="_blank" rel="noopener noreferrer">Visit Pointfex</a>
       <form method="dialog"><button>Close</button></form>
     </dialog>
