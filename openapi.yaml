@@ -1,0 +1,2575 @@
+openapi: 3.1.0
+info:
+  title: UniCircle Single-University Marketplace REST API
+  version: 3.0.0
+  description: Frozen internal API contract aligned with UniCircle PRD v3.0, Supabase Storage Free signed uploads,
+    Vercel deployment target and initial seu.edu.bd university domain (2026-11-23). Read API_CONTRACT.md for
+    permissions and state invariants. Services are not implemented merely by publishing this spec.
+servers:
+- url: /api/v1
+  description: Same-origin Vercel API base
+tags:
+- name: Infrastructure
+- name: Auth
+- name: Listings
+- name: Photos
+- name: Requests
+- name: Activity
+- name: Admin
+paths:
+  /health:
+    get:
+      tags:
+      - Infrastructure
+      operationId: get_health
+      summary: Health signal
+      description: 'Authorization: Public. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+  /auth/csrf:
+    get:
+      tags:
+      - Auth
+      operationId: get_auth_csrf
+      summary: CSRF bootstrap
+      description: 'Authorization: Public. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfResponse'
+      security: []
+  /auth/register:
+    post:
+      tags:
+      - Auth
+      operationId: post_auth_register
+      summary: Register email-only university member
+      description: 'Authorization: Public+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+      security: &id001
+      - csrfHeader: []
+  /auth/verify-email:
+    post:
+      tags:
+      - Auth
+      operationId: post_auth_verify_email
+      summary: Verify university email link
+      description: 'Authorization: Public+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Verify'
+      security: *id001
+  /auth/resend-verification:
+    post:
+      tags:
+      - Auth
+      operationId: post_auth_resend_verification
+      summary: Resend verification email with generic response
+      description: 'Authorization: Public+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '202':
+          description: Accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailOnly'
+      security: *id001
+  /auth/login:
+    post:
+      tags:
+      - Auth
+      operationId: post_auth_login
+      summary: Sign in with university email
+      description: 'Authorization: Public+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+      security: *id001
+  /auth/logout:
+    post:
+      tags:
+      - Auth
+      operationId: post_auth_logout
+      summary: Logout and revoke session
+      description: 'Authorization: Auth+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '204':
+          description: No content; no response body.
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: &id003
+      - cookieAuth: []
+        csrfHeader: []
+  /auth/me:
+    get:
+      tags:
+      - Auth
+      operationId: get_auth_me
+      summary: Return own current user
+      description: 'Authorization: Auth. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - &id002
+        cookieAuth: []
+  /verification/status:
+    get:
+      tags:
+      - Auth
+      operationId: get_verification_status
+      summary: Current email verification state
+      description: 'Authorization: Auth. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - *id002
+  /auth/forgot-password:
+    post:
+      tags:
+      - Auth
+      operationId: post_auth_forgot_password
+      summary: Request reset link with generic response
+      description: 'Authorization: Public+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '202':
+          description: Accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailOnly'
+      security: *id001
+  /auth/reset-password:
+    post:
+      tags:
+      - Auth
+      operationId: post_auth_reset_password
+      summary: Reset password and revoke all sessions
+      description: 'Authorization: Public+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+      security: *id001
+  /categories:
+    get:
+      tags:
+      - Listings
+      operationId: get_categories
+      summary: Get eight immutable categories
+      description: 'Authorization: Verified. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - *id002
+  /listings:
+    get:
+      tags:
+      - Listings
+      operationId: get_listings
+      summary: Browse feed cursor pagination
+      description: 'Authorization: Verified. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingsPageResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/q'
+      - $ref: '#/components/parameters/category'
+      - $ref: '#/components/parameters/type'
+      - $ref: '#/components/parameters/free'
+      - &id005
+        $ref: '#/components/parameters/limit'
+      - &id006
+        $ref: '#/components/parameters/cursor'
+      security:
+      - *id002
+    post:
+      tags:
+      - Listings
+      operationId: post_listings
+      summary: Create listing
+      description: 'Authorization: Verified+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateListing'
+      security: *id003
+  /listings/{id}:
+    get:
+      tags:
+      - Listings
+      operationId: get_listings_id
+      summary: Listing detail with visibility rules
+      description: 'Authorization: Verified+visibility. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - &id004
+        $ref: '#/components/parameters/id'
+      security:
+      - *id002
+    patch:
+      tags:
+      - Listings
+      operationId: patch_listings_id
+      summary: Edit available owner listing with version
+      description: 'Authorization: Owner+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchListing'
+      parameters:
+      - *id004
+      security: *id003
+    delete:
+      tags:
+      - Listings
+      operationId: delete_listings_id
+      summary: Soft-delete eligible owner listing
+      description: 'Authorization: Owner+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '204':
+          description: No content; no response body.
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id004
+      security: *id003
+  /listings/{id}/close:
+    post:
+      tags:
+      - Listings
+      operationId: post_listings_id_close
+      summary: Close eligible owner listing
+      description: 'Authorization: Owner+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id004
+      security: *id003
+  /listings/photos/sign:
+    post:
+      tags:
+      - Photos
+      operationId: post_listings_photos_sign
+      summary: Authorize direct Supabase Storage Free image upload
+      description: Verified owner + CSRF; server signs owner-bound generated object key; Supabase signed upload
+        TTL 2 hours. Binary is uploaded client-to-Supabase, not via Vercel Function.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoSignResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhotoSignRequest'
+      security: *id003
+  /listings/photos/confirm:
+    post:
+      tags:
+      - Photos
+      operationId: post_listings_photos_confirm
+      summary: Confirm Supabase Storage object and owner-bound photo asset
+      description: Verified owner + CSRF; validate actual object bytes/size/MIME/magic and ownership; return
+        trusted public URL only after verification.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoConfirmResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Upstream upload failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhotoConfirmRequest'
+      security: *id003
+  /listings/{id}/requests:
+    post:
+      tags:
+      - Requests
+      operationId: post_listings_id_requests
+      summary: Create listing request with immutable term snapshot
+      description: 'Authorization: Verified non-owner+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequest'
+      parameters:
+      - *id004
+      security: *id003
+  /requests/{id}:
+    get:
+      tags:
+      - Requests
+      operationId: get_requests_id
+      summary: Get participant-only private request
+      description: 'Authorization: Participant. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id004
+      security:
+      - *id002
+  /requests/{id}/accept:
+    post:
+      tags:
+      - Requests
+      operationId: post_requests_id_accept
+      summary: Accept pending request atomically
+      description: 'Authorization: Owner+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestWithStatusResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Accept'
+      parameters:
+      - *id004
+      security: *id003
+  /requests/{id}/decline:
+    post:
+      tags:
+      - Requests
+      operationId: post_requests_id_decline
+      summary: Decline pending request
+      description: 'Authorization: Owner+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id004
+      security: *id003
+  /requests/{id}/cancel:
+    post:
+      tags:
+      - Requests
+      operationId: post_requests_id_cancel
+      summary: Cancel pending or pre-handover accepted request
+      description: 'Authorization: Requester/participant+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cancel'
+      parameters:
+      - *id004
+      security: *id003
+  /requests/{id}/handover:
+    post:
+      tags:
+      - Requests
+      operationId: post_requests_id_handover
+      summary: Record owner handover (exchange requires explicit both-items confirmation)
+      description: 'Authorization: Owner+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestWithStatusResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Handover'
+      parameters:
+      - *id004
+      security: *id003
+  /requests/{id}/return:
+    post:
+      tags:
+      - Requests
+      operationId: post_requests_id_return
+      summary: Confirm rent/free borrow return
+      description: 'Authorization: Owner+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestWithStatusResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id004
+      security: *id003
+  /me/listings:
+    get:
+      tags:
+      - Activity
+      operationId: get_me_listings
+      summary: Get own listing history (excluding deleted ordinary view)
+      description: 'Authorization: Verified. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyListingsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters: &id007
+      - *id005
+      - *id006
+      security:
+      - *id002
+  /me/requests/sent:
+    get:
+      tags:
+      - Activity
+      operationId: get_me_requests_sent
+      summary: Get requests I sent
+      description: 'Authorization: Verified. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestsPageResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters: *id007
+      security:
+      - *id002
+  /me/requests/received:
+    get:
+      tags:
+      - Activity
+      operationId: get_me_requests_received
+      summary: Get requests received for my listings
+      description: 'Authorization: Verified. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestsPageResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters: *id007
+      security:
+      - *id002
+  /admin/domains:
+    get:
+      tags:
+      - Admin
+      operationId: get_admin_domains
+      summary: List approved email domains
+      description: 'Authorization: Admin. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - *id002
+    post:
+      tags:
+      - Admin
+      operationId: post_admin_domains
+      summary: Add same-university approved email domain
+      description: 'Authorization: Admin+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddDomain'
+      security: *id003
+  /admin/domains/{id}:
+    patch:
+      tags:
+      - Admin
+      operationId: patch_admin_domains_id
+      summary: Toggle approved email domain active state
+      description: 'Authorization: Admin+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchDomain'
+      parameters:
+      - *id004
+      security: *id003
+  /admin/listings:
+    get:
+      tags:
+      - Admin
+      operationId: get_admin_listings
+      summary: List moderated listings excluding private pickup
+      description: 'Authorization: Admin. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminListingsPageResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/q'
+      - $ref: '#/components/parameters/status'
+      - $ref: '#/components/parameters/hidden'
+      - *id005
+      - *id006
+      security:
+      - *id002
+  /admin/listings/{id}:
+    get:
+      tags:
+      - Admin
+      operationId: get_admin_listings_id
+      summary: Moderation listing details excluding pickup
+      description: 'Authorization: Admin. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminListingResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id004
+      security:
+      - *id002
+  /admin/listings/{id}/hide:
+    post:
+      tags:
+      - Admin
+      operationId: post_admin_listings_id_hide
+      summary: Hide listing with reason and audited cascade
+      description: 'Authorization: Admin+CSRF. See API_CONTRACT.md for state and privacy invariants.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminListingResponse'
+        '400':
+          description: Validation error / invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden / not verified / CSRF rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HideListing'
+      parameters:
+      - *id004
+      security: *id003
+components:
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+          required:
+          - code
+          - message
+          - details
+      required:
+      - error
+    UserSelf:
+      type: object
+      additionalProperties: false
+      properties:
+        id: &id008
+          type: string
+          pattern: ^[a-f0-9]{24}$
+        fullName:
+          type: string
+        displayName:
+          type: string
+        universityEmail:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+          - member
+          - admin
+        verificationStatus:
+          type: string
+          enum:
+          - unverified
+          - verified
+      required:
+      - id
+      - fullName
+      - displayName
+      - universityEmail
+      - role
+      - verificationStatus
+    OwnerPublic:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        displayName:
+          type: string
+      required:
+      - id
+      - displayName
+    Category:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        code:
+          type: string
+          enum:
+          - books_notes
+          - electronics
+          - stationery
+          - lab_equipment
+          - furniture
+          - clothing
+          - sports
+          - other
+        name:
+          type: string
+      required:
+      - id
+      - code
+      - name
+    Domain:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        domain:
+          type: string
+        isActive:
+          type: boolean
+        createdAt: &id009
+          type: string
+          format: date-time
+        updatedAt: *id009
+      required:
+      - id
+      - domain
+      - isActive
+      - createdAt
+      - updatedAt
+    ListingSummary:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        title:
+          type: string
+        category:
+          $ref: '#/components/schemas/Category'
+        condition:
+          type: string
+          enum: &id010
+          - new
+          - like_new
+          - good
+          - fair
+          - poor
+        listingType:
+          type: string
+          enum: &id011
+          - sell
+          - donate
+          - rent
+          - exchange
+          - free_borrowing
+        amountBdt:
+          anyOf:
+          - &id012
+            type: string
+            pattern: ^(0|[1-9][0-9]{0,6})\.[0-9]{2}$
+          - type: 'null'
+        exchangeTerms:
+          anyOf:
+          - type: string
+          - type: 'null'
+        photoUrl:
+          anyOf:
+          - type: string
+            format: uri
+          - type: 'null'
+        owner:
+          $ref: '#/components/schemas/OwnerPublic'
+        status:
+          type: string
+          enum: &id013
+          - available
+          - reserved
+          - checked_out
+          - completed
+          - closed
+        createdAt: *id009
+      required:
+      - id
+      - title
+      - category
+      - condition
+      - listingType
+      - amountBdt
+      - exchangeTerms
+      - photoUrl
+      - owner
+      - status
+      - createdAt
+    ListingDetail:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        title:
+          type: string
+        category:
+          $ref: '#/components/schemas/Category'
+        condition:
+          type: string
+          enum: *id010
+        listingType:
+          type: string
+          enum: *id011
+        amountBdt:
+          anyOf:
+          - *id012
+          - type: 'null'
+        exchangeTerms:
+          anyOf:
+          - type: string
+          - type: 'null'
+        photoUrl:
+          anyOf:
+          - type: string
+            format: uri
+          - type: 'null'
+        owner:
+          $ref: '#/components/schemas/OwnerPublic'
+        status:
+          type: string
+          enum: *id013
+        createdAt: *id009
+        description:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        isHidden:
+          type: boolean
+        hiddenReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+        updatedAt: *id009
+      required:
+      - id
+      - title
+      - category
+      - condition
+      - listingType
+      - amountBdt
+      - exchangeTerms
+      - photoUrl
+      - owner
+      - status
+      - createdAt
+      - description
+      - version
+      - isHidden
+      - updatedAt
+      description: hiddenReason only for owner; omit it for non-owner.
+    RequestDetail:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        listingId: *id008
+        requester:
+          $ref: '#/components/schemas/OwnerPublic'
+        listingType:
+          type: string
+          enum: *id011
+        status:
+          type: string
+          enum:
+          - pending
+          - accepted
+          - declined
+          - cancelled
+          - checked_out
+          - completed
+        termsAmountBdt:
+          anyOf:
+          - *id012
+          - type: 'null'
+        listingExchangeTerms:
+          anyOf:
+          - type: string
+          - type: 'null'
+        proposedPickupDate:
+          anyOf:
+          - &id014
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+          - type: 'null'
+        returnDate:
+          anyOf:
+          - *id014
+          - type: 'null'
+        rentalFeeBdt:
+          anyOf:
+          - *id012
+          - type: 'null'
+        offeredItemDescription:
+          anyOf:
+          - type: string
+          - type: 'null'
+        pickupPoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+        pickupAt:
+          anyOf:
+          - *id009
+          - type: 'null'
+        handedOverAt:
+          anyOf:
+          - *id009
+          - type: 'null'
+        returnedAt:
+          anyOf:
+          - *id009
+          - type: 'null'
+        cancellationReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+        createdAt: *id009
+      required:
+      - id
+      - listingId
+      - requester
+      - listingType
+      - status
+      - termsAmountBdt
+      - listingExchangeTerms
+      - proposedPickupDate
+      - returnDate
+      - rentalFeeBdt
+      - offeredItemDescription
+      - createdAt
+      description: pickupPoint/pickupAt only owner and this requester; never admin of unrelated transaction.
+    AdminListing:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        title:
+          type: string
+        listingType:
+          type: string
+          enum: *id011
+        status:
+          type: string
+          enum: *id013
+        isHidden:
+          type: boolean
+        hiddenReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+        owner:
+          $ref: '#/components/schemas/OwnerPublic'
+        createdAt: *id009
+      required:
+      - id
+      - title
+      - listingType
+      - status
+      - isHidden
+      - owner
+      - createdAt
+      description: Never includes private pickup, passwords, account email.
+    CreateListing:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        properties:
+          title: &id015
+            type: string
+            minLength: 3
+            maxLength: 100
+          categoryId: *id008
+          description: &id016
+            type: string
+            minLength: 10
+            maxLength: 2000
+          condition: &id017
+            type: string
+            enum: *id010
+          photoAssetId: *id008
+          listingType:
+            type: string
+            const: sell
+          amountBdt: *id012
+        required:
+        - title
+        - categoryId
+        - description
+        - condition
+        - listingType
+        - amountBdt
+        description: Paid sale; amount > 0 checked server-side.
+      - type: object
+        additionalProperties: false
+        properties:
+          title: *id015
+          categoryId: *id008
+          description: *id016
+          condition: *id017
+          photoAssetId: *id008
+          listingType:
+            type: string
+            const: rent
+          amountBdt: *id012
+        required:
+        - title
+        - categoryId
+        - description
+        - condition
+        - listingType
+        - amountBdt
+        description: Paid daily rent; amount > 0 checked server-side.
+      - type: object
+        additionalProperties: false
+        properties:
+          title: *id015
+          categoryId: *id008
+          description: *id016
+          condition: *id017
+          photoAssetId: *id008
+          listingType:
+            type: string
+            const: donate
+          amountBdt: *id012
+        required: &id018
+        - title
+        - categoryId
+        - description
+        - condition
+        - listingType
+        description: No amount or explicit 0.00 only, checked server-side.
+      - type: object
+        additionalProperties: false
+        properties:
+          title: *id015
+          categoryId: *id008
+          description: *id016
+          condition: *id017
+          photoAssetId: *id008
+          listingType:
+            type: string
+            const: free_borrowing
+          amountBdt: *id012
+        required: *id018
+        description: No amount or explicit 0.00 only, checked server-side.
+      - type: object
+        additionalProperties: false
+        properties:
+          title: *id015
+          categoryId: *id008
+          description: *id016
+          condition: *id017
+          photoAssetId: *id008
+          listingType:
+            type: string
+            const: exchange
+          exchangeTerms:
+            type: string
+            minLength: 1
+            maxLength: 500
+        required:
+        - title
+        - categoryId
+        - description
+        - condition
+        - listingType
+        - exchangeTerms
+        description: No money amount for exchange.
+      description: ' Server validates type-specific fields, positive paid amount, <=9,999,999.99 BDT, and state/date
+        invariants in API_CONTRACT.md.'
+    PatchListing:
+      type: object
+      additionalProperties: false
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+        categoryId: *id008
+        description:
+          type: string
+          minLength: 10
+          maxLength: 2000
+        condition:
+          type: string
+          enum: *id010
+        listingType:
+          type: string
+          enum: *id011
+        amountBdt: *id012
+        exchangeTerms:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 500
+          - type: 'null'
+        photoAssetId:
+          anyOf:
+          - *id008
+          - type: 'null'
+      required:
+      - version
+      description: Only allowed keys. Null photoAssetId removes photo. Must have at least one mutable field;
+        version mismatch =>409. Server validates type-specific fields, positive paid amount, <=9,999,999.99
+        BDT, and state/date invariants in API_CONTRACT.md.
+    Register:
+      type: object
+      additionalProperties: false
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 50
+        universityEmail:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+      required:
+      - fullName
+      - displayName
+      - universityEmail
+      - password
+    Verify:
+      type: object
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          minLength: 16
+      required:
+      - token
+    EmailOnly:
+      type: object
+      additionalProperties: false
+      properties:
+        universityEmail:
+          type: string
+          format: email
+      required:
+      - universityEmail
+    Login:
+      type: object
+      additionalProperties: false
+      properties:
+        universityEmail:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+      - universityEmail
+      - password
+    ResetPassword:
+      type: object
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          minLength: 16
+        newPassword:
+          type: string
+          minLength: 8
+      required:
+      - token
+      - newPassword
+    CreateRequest:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        properties: {}
+        description: 'Sell or donate: empty body only.'
+      - type: object
+        additionalProperties: false
+        properties:
+          proposedPickupDate: *id014
+          returnDate: *id014
+        required:
+        - proposedPickupDate
+        - returnDate
+        description: Rent and free borrowing only; enforce date difference 1–365 days.
+      - type: object
+        additionalProperties: false
+        properties:
+          offeredItemDescription:
+            type: string
+            minLength: 1
+            maxLength: 500
+        required:
+        - offeredItemDescription
+        description: Exchange only.
+      description: ' Server validates type-specific fields, positive paid amount, <=9,999,999.99 BDT, and state/date
+        invariants in API_CONTRACT.md.'
+    Accept:
+      type: object
+      additionalProperties: false
+      properties:
+        pickupPoint:
+          type: string
+          minLength: 3
+          maxLength: 120
+        pickupAt: *id009
+      required:
+      - pickupPoint
+      - pickupAt
+    Cancel:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    Handover:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        properties: {}
+        description: Sell, donate, rent and free borrowing.
+      - type: object
+        additionalProperties: false
+        properties:
+          confirmBothItemsExchanged:
+            type: boolean
+            const: true
+        required:
+        - confirmBothItemsExchanged
+        description: Exchange requires true and explicit UI confirmation.
+    AddDomain:
+      type: object
+      additionalProperties: false
+      properties:
+        domain:
+          type: string
+          minLength: 3
+          maxLength: 253
+      required:
+      - domain
+    PatchDomain:
+      type: object
+      additionalProperties: false
+      properties:
+        isActive:
+          type: boolean
+      required:
+      - isActive
+    HideListing:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+      required:
+      - reason
+    PhotoSignRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        contentType:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - image/webp
+        sizeBytes:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+      required:
+      - fileName
+      - contentType
+      - sizeBytes
+    PhotoSignData:
+      type: object
+      additionalProperties: false
+      properties:
+        upload:
+          type: object
+          additionalProperties: false
+          properties:
+            photoAssetId:
+              type: string
+              pattern: ^[0-9a-f]{24}$
+            bucket:
+              type: string
+              const: unicircle-listings
+            path:
+              type: string
+              minLength: 1
+              maxLength: 512
+            token:
+              type: string
+              minLength: 1
+              description: Supabase signed browser-upload token; secret capability, do not log or store in
+                application database
+            expiresAt:
+              type: string
+              format: date-time
+              description: Supabase signed upload token valid for 2 hours from issuance
+          required:
+          - photoAssetId
+          - bucket
+          - path
+          - token
+          - expiresAt
+      required:
+      - upload
+    PhotoConfirmRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        photoAssetId:
+          type: string
+          pattern: ^[0-9a-f]{24}$
+      required:
+      - photoAssetId
+    PhotoAsset:
+      type: object
+      additionalProperties: false
+      properties:
+        photoAssetId: *id008
+        secureUrl:
+          type: string
+          format: uri
+      required:
+      - photoAssetId
+      - secureUrl
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            status:
+              type: string
+              const: ok
+          required:
+          - status
+      required:
+      - data
+    CsrfResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            csrfToken:
+              type: string
+          required:
+          - csrfToken
+      required:
+      - data
+    RegisterResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            account:
+              type: object
+              additionalProperties: false
+              properties:
+                id: *id008
+                verificationStatus:
+                  type: string
+                  const: unverified
+              required:
+              - id
+              - verificationStatus
+            emailSent:
+              type: boolean
+          required:
+          - account
+          - emailSent
+      required:
+      - data
+    VerifyResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            verificationStatus:
+              type: string
+              const: verified
+          required:
+          - verificationStatus
+      required:
+      - data
+    MessageResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            message:
+              type: string
+          required:
+          - message
+      required:
+      - data
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            user:
+              $ref: '#/components/schemas/UserSelf'
+            csrfToken:
+              type: string
+          required:
+          - user
+          - csrfToken
+      required:
+      - data
+    MeResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            user:
+              $ref: '#/components/schemas/UserSelf'
+          required:
+          - user
+      required:
+      - data
+    StatusResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            verificationStatus:
+              type: string
+              enum:
+              - unverified
+              - verified
+            canResend:
+              type: boolean
+          required:
+          - verificationStatus
+          - canResend
+      required:
+      - data
+    CategoriesResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Category'
+          required:
+          - items
+      required:
+      - data
+    ListingsPageResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ListingSummary'
+            nextCursor:
+              anyOf:
+              - type: string
+              - type: 'null'
+          required:
+          - items
+          - nextCursor
+      required:
+      - data
+    ListingResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            listing:
+              $ref: '#/components/schemas/ListingDetail'
+          required:
+          - listing
+      required:
+      - data
+    RequestResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            request:
+              $ref: '#/components/schemas/RequestDetail'
+          required:
+          - request
+      required:
+      - data
+    RequestWithStatusResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            request:
+              $ref: '#/components/schemas/RequestDetail'
+            listingStatus:
+              type: string
+              enum: *id013
+          required:
+          - request
+          - listingStatus
+      required:
+      - data
+    RequestsPageResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/RequestDetail'
+            nextCursor:
+              anyOf:
+              - type: string
+              - type: 'null'
+          required:
+          - items
+          - nextCursor
+      required:
+      - data
+    MyListingsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ListingDetail'
+            nextCursor:
+              anyOf:
+              - type: string
+              - type: 'null'
+          required:
+          - items
+          - nextCursor
+      required:
+      - data
+    DomainsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Domain'
+          required:
+          - items
+      required:
+      - data
+    DomainResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            domain:
+              $ref: '#/components/schemas/Domain'
+          required:
+          - domain
+      required:
+      - data
+    AdminListingsPageResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminListing'
+            nextCursor:
+              anyOf:
+              - type: string
+              - type: 'null'
+          required:
+          - items
+          - nextCursor
+      required:
+      - data
+    AdminListingResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            listing:
+              $ref: '#/components/schemas/AdminListing'
+          required:
+          - listing
+      required:
+      - data
+    PhotoSignResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          $ref: '#/components/schemas/PhotoSignData'
+      required:
+      - data
+    PhotoConfirmResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            photo:
+              $ref: '#/components/schemas/PhotoAsset'
+          required:
+          - photo
+      required:
+      - data
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema: *id008
+    q:
+      name: q
+      in: query
+      required: false
+      schema:
+        type: string
+        maxLength: 100
+      description: Title search
+    category:
+      name: category
+      in: query
+      schema:
+        type: string
+        enum:
+        - books_notes
+        - electronics
+        - stationery
+        - lab_equipment
+        - furniture
+        - clothing
+        - sports
+        - other
+    type:
+      name: type
+      in: query
+      schema:
+        type: string
+        enum: *id011
+    free:
+      name: free
+      in: query
+      schema:
+        type: boolean
+    hidden:
+      name: hidden
+      in: query
+      schema:
+        type: boolean
+    status:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum: *id013
+    limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        minLength: 1
+      description: Opaque signed cursor; use nextCursor from previous response
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: uc_session
+      description: Opaque HttpOnly server session; set by login. Use credentials include.
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: x-csrf-token
+      description: CSRF token from GET /auth/csrf or authenticated login response. Origin is also validated.
