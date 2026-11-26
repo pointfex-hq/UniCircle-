@@ -1,11 +1,11 @@
 # UniCircle Vercel deployment readiness
 
-This repository is prepared for a single Vercel project with two Services:
+This repository is prepared for two Vercel projects from the same repository:
 
-- `frontend`: the Vite SPA, mounted at `/`
-- `backend`: the Express API, mounted at `/api/v1`
+- `frontend`: Root Directory `frontend`, using `frontend/vercel.json`
+- `backend`: Root Directory `backend`, using `backend/vercel.json`
 
-The configuration is in `vercel.json`. Do not create separate public origins for the SPA and API; the session cookie, Origin checks and CSRF flow are designed for same-origin requests.
+The frontend proxies `/api/v1/*` to the backend project, so browser requests remain same-origin at the public frontend URL. Update the destination in `frontend/vercel.json` if the backend production alias changes.
 
 ## Confirmed project classification
 
@@ -13,10 +13,10 @@ On 2026-11-24 the operator confirmed that UniCircle is a non-commercial class/gr
 
 ## Vercel project settings
 
-1. Import the Git repository as one Vercel project.
-2. Keep the project Root Directory at the repository root (`.`).
-3. Let `vercel.json` own the two service builds and routing.
-4. Select Node.js 22 for the backend service.
+1. Import the repository twice: Root Directory `backend` for the API and `frontend` for the SPA.
+2. Select Express for the backend and Vite for the frontend.
+3. Select Node.js 22 for both projects.
+4. Deploy the backend first and confirm its stable production alias matches the proxy destination in `frontend/vercel.json`.
 5. Do not deploy until all environment variables below have been added to the intended Vercel environments.
 
 ## Backend environment variables

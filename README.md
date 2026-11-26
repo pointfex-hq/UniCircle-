@@ -26,4 +26,4 @@ See the [frontend guide](frontend/README.md) to run the baseline tests and build
 
 ## Deployment preparation
 
-The repository is configured for a single Vercel project containing the Vite frontend and Express backend as same-origin Services. Review [DEPLOYMENT.md](DEPLOYMENT.md) and the [Phase 6 readiness evidence](PHASE6_READINESS.md) before linking the repository or adding production environment variables. No credential belongs in Git.
+The repository contains separate Vercel configurations for the Vite frontend and Express backend. The frontend proxies `/api/v1` requests to the backend so browser traffic stays same-origin. Review [DEPLOYMENT.md](DEPLOYMENT.md) and the [Phase 6 readiness evidence](PHASE6_READINESS.md) before adding production environment variables. No credential belongs in Git.

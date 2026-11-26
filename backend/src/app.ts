@@ -7,6 +7,7 @@ import { adminRouter } from './routes/admin.js';
 import { ApiError, errorResponse } from './lib/http.js';
 
 export const app = express();
+export default app;
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '100kb', strict: true }));
