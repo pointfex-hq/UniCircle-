@@ -3,7 +3,7 @@
 ## Completed locally
 
 - Integrated the backend, updated API-connected frontend, Supabase assets/scripts and frozen documentation into the existing Git repository history.
-- Added a single-project Vercel Services configuration for same-origin `/api/v1` routing and SPA fallback.
+- Added separate Vercel frontend/backend configurations with same-origin `/api/v1` proxying and SPA fallback.
 - Added root and package-level ignore rules for environment files, dependencies, build output, coverage and Vercel local metadata.
 - Added a backend CI job alongside the existing frontend and OpenAPI/contract jobs.
 - Recorded the required Vercel environment variables and first-deployment runbook in `DEPLOYMENT.md`.
@@ -23,14 +23,15 @@
 
 ## Intentionally not performed
 
-- No Git commit or push.
-- No Vercel project link, preview deployment or production deployment.
+- Git commits and pushes were completed after review.
+- Frontend and backend Vercel projects were linked and deployed through the CLI without GitHub integration.
+- Public access and live Atlas connectivity remain pending explicit access-control approval.
 - No destructive database migration rerun against the live application database.
 - No complete PAC-01–PAC-62 live acceptance run.
 
 ## Live checks still required after the first Vercel preview
 
-- Verify Vercel Services routing, SPA direct reload and `/api/v1/health` on the real preview URL.
+- Verify SPA direct reload and proxied `/api/v1/health` on the public production URL.
 - Set the final `APP_BASE_URL` and `ALLOWED_ORIGINS`, then verify Secure/HttpOnly/SameSite cookies plus Origin and CSRF enforcement.
 - Verify one registration email, one reset email and one signed Supabase staging photo upload end to end.
 - Run Atlas migration verification and the transaction/race integration suite against a dedicated test database.
